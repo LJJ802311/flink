@@ -329,7 +329,11 @@ under the License.
 			separatly in the flink-shaded-hadoop-2 dependency).
 		-->
 		<dependencies>
-
+			<dependency>
+				<groupId>com.googlecode.aviator</groupId>
+				<artifactId>aviator</artifactId>
+				<version>${aviator.version}</version>
+			</dependency>
 			<dependency>
 				<groupId>org.apache.flink</groupId>
 				<artifactId>flink-shaded-asm-9</artifactId>

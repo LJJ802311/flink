@@ -183,6 +183,11 @@ under the License.
 			<scope>compile</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>com.googlecode.aviator</groupId>
+			<artifactId>aviator</artifactId>
+		</dependency>
+
 		<!-- Table dependencies -->
 
 		<dependency>

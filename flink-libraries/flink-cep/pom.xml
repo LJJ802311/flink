@@ -59,7 +59,6 @@ under the License.
 		<dependency>
 			<groupId>com.googlecode.aviator</groupId>
 			<artifactId>aviator</artifactId>
-			<version>${aviator.version}</version>
 		</dependency>
 
         <!-- test dependencies -->
