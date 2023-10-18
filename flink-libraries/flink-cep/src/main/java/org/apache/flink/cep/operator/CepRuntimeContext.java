@@ -18,7 +18,6 @@
 
 package org.apache.flink.cep.operator;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.accumulators.Accumulator;
@@ -55,12 +54,11 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * iterative condition function. Consequently, state access, accumulators, broadcast variables and
  * the distributed cache are disabled.
  */
-@Internal
-class CepRuntimeContext implements RuntimeContext {
+public class CepRuntimeContext implements RuntimeContext {
 
     private final RuntimeContext runtimeContext;
 
-    CepRuntimeContext(final RuntimeContext runtimeContext) {
+    public CepRuntimeContext(final RuntimeContext runtimeContext) {
         this.runtimeContext = checkNotNull(runtimeContext);
     }
 

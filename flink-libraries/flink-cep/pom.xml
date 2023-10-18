@@ -26,7 +26,7 @@ under the License.
     <parent>
         <groupId>org.apache.flink</groupId>
         <artifactId>flink-libraries</artifactId>
-        <version>1.15-SNAPSHOT</version>
+        <version>1.15-VRV</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -56,6 +56,11 @@ under the License.
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-shaded-guava</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>com.googlecode.aviator</groupId>
+			<artifactId>aviator</artifactId>
+			<version>${aviator.version}</version>
+		</dependency>
 
         <!-- test dependencies -->
 
@@ -73,7 +78,7 @@ under the License.
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
-        
+
         <dependency>
             <groupId>org.apache.flink</groupId>
             <artifactId>flink-streaming-java</artifactId>
@@ -97,7 +102,7 @@ under the License.
             <scope>test</scope>
         </dependency>
     </dependencies>
-    
+
     <build>
         <plugins>
             <plugin>

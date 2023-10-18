@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.15-VRV</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -51,8 +51,8 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 	</dependencies>
-	
-	
+
+
 	<build>
 		<plugins>
 			<plugin>
@@ -180,13 +180,13 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-			
+
 			<!-- create the example JAR files -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
-				
+
 					<!-- KMeans -->
 					<execution>
 						<id>KMeans</id>
@@ -224,13 +224,13 @@ under the License.
 						</goals>
 						<configuration>
 							<classifier>TransitiveClosure</classifier>
-				
+
 							<archive>
 								<manifestEntries>
 									<program-class>org.apache.flink.examples.java.graph.TransitiveClosureNaive</program-class>
 								</manifestEntries>
 							</archive>
-				
+
 							<includes>
 								<include>**/java/graph/TransitiveClosureNaive.class</include>
 								<include>**/java/graph/TransitiveClosureNaive$*.class</include>
@@ -266,7 +266,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- EnumTriangles Basic -->
 					<execution>
 						<id>EnumTriangles</id>
@@ -294,7 +294,7 @@ under the License.
 							</includes>
 						</configuration>
 					</execution>
-					
+
 					<!-- PageRank -->
 					<execution>
 						<id>PageRank</id>

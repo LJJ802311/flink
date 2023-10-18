@@ -22,7 +22,6 @@ import org.apache.flink.cep.nfa.sharedbuffer.EventId;
 import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
 
 import javax.annotation.Nullable;
-
 import java.util.Objects;
 
 /**
@@ -41,6 +40,9 @@ public class ComputationState {
     // Timestamp of the first element in the pattern
     private final long startTimestamp;
 
+    // Timestamp of the previous element of the pattern
+    private final long previousTimestamp;
+
     @Nullable private final NodeId previousBufferEntry;
 
     @Nullable private final EventId startEventID;
@@ -50,10 +52,12 @@ public class ComputationState {
             @Nullable final NodeId previousBufferEntry,
             final DeweyNumber version,
             @Nullable final EventId startEventID,
-            final long startTimestamp) {
+            final long startTimestamp,
+            final long previousTimestamp) {
         this.currentStateName = currentState;
         this.version = version;
         this.startTimestamp = startTimestamp;
+        this.previousTimestamp = previousTimestamp;
         this.previousBufferEntry = previousBufferEntry;
         this.startEventID = startEventID;
     }
@@ -68,6 +72,10 @@ public class ComputationState {
 
     public long getStartTimestamp() {
         return startTimestamp;
+    }
+
+    public long getPreviousTimestamp() {
+        return previousTimestamp;
     }
 
     public String getCurrentStateName() {
@@ -85,6 +93,7 @@ public class ComputationState {
             return Objects.equals(currentStateName, other.currentStateName)
                     && Objects.equals(version, other.version)
                     && startTimestamp == other.startTimestamp
+                    && previousTimestamp == other.previousTimestamp
                     && Objects.equals(startEventID, other.startEventID)
                     && Objects.equals(previousBufferEntry, other.previousBufferEntry);
         } else {
@@ -102,6 +111,8 @@ public class ComputationState {
                 + version
                 + ", startTimestamp="
                 + startTimestamp
+                + ", previousTimestamp="
+                + previousTimestamp
                 + ", previousBufferEntry="
                 + previousBufferEntry
                 + ", startEventID="
@@ -112,7 +123,12 @@ public class ComputationState {
     @Override
     public int hashCode() {
         return Objects.hash(
-                currentStateName, version, startTimestamp, startEventID, previousBufferEntry);
+                currentStateName,
+                version,
+                startTimestamp,
+                previousTimestamp,
+                startEventID,
+                previousBufferEntry);
     }
 
     public static ComputationState createStartState(final String state) {
@@ -120,7 +136,7 @@ public class ComputationState {
     }
 
     public static ComputationState createStartState(final String state, final DeweyNumber version) {
-        return createState(state, null, version, -1L, null);
+        return createState(state, null, version, -1L, -1L, null);
     }
 
     public static ComputationState createState(
@@ -128,8 +144,14 @@ public class ComputationState {
             final NodeId previousEntry,
             final DeweyNumber version,
             final long startTimestamp,
+            final long previousTimestamp,
             final EventId startEventID) {
         return new ComputationState(
-                currentState, previousEntry, version, startEventID, startTimestamp);
+                currentState,
+                previousEntry,
+                version,
+                startEventID,
+                startTimestamp,
+                previousTimestamp);
     }
 }

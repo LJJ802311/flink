@@ -25,7 +25,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-examples</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.15-VRV</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -173,7 +173,7 @@ under the License.
 							<goal>test-jar</goal>
 						</goals>
 					</execution>
-					
+
 					<!-- Iteration -->
 					<execution>
 						<id>Iteration</id>
@@ -410,7 +410,7 @@ under the License.
 							</args>
 						</configuration>
 					</execution>
- 
+
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
 						 scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>
@@ -428,7 +428,7 @@ under the License.
 					</jvmArgs>
 				</configuration>
 			</plugin>
-			
+
 			<!-- Eclipse Integration -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

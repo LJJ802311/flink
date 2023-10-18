@@ -28,7 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.15-SNAPSHOT</version>
+	<version>1.15-VRV</version>
 
 	<name>Flink : </name>
 	<packaging>pom</packaging>
@@ -198,6 +198,9 @@ under the License.
 		<!-- Can be set to any value to reproduce a specific build. -->
 		<test.randomization.seed/>
 		<test.unit.pattern>**/*Test.*</test.unit.pattern>
+
+		<aviator.version>5.3.3</aviator.version>
+		<frocksdbjni.version>6.20.3-ververica-2.0</frocksdbjni.version>
 	</properties>
 
 	<dependencies>
@@ -879,6 +882,43 @@ under the License.
 	</dependencyManagement>
 
 	<profiles>
+		<profile>
+			<id>vrv-release</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<version>3.10.1</version>
+						<configuration>
+							<source>${target.java.version}</source>
+							<target>${target.java.version}</target>
+							<encoding>UTF-8</encoding>
+						</configuration>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-source-plugin</artifactId>
+						<version>2.2.1</version>
+						<executions>
+							<execution>
+								<id>attach-sources</id>
+								<goals>
+									<goal>jar-no-fork</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-deploy-plugin</artifactId>
+						<version>3.0.0-M1</version>
+					</plugin>
+
+				</plugins>
+			</build>
+		</profile>
+
 		<profile>
 			<id>scala-2.12</id>
 			<properties>
@@ -2198,5 +2238,18 @@ under the License.
 			</plugins>
 		</pluginManagement>
 	</build>
+	<distributionManagement>
+		<!--正式版本-->
+		<repository>
+			<!-- nexus服务器中用户名：在settings.xml中<server>的id-->
+			<id>nanjing-nexus</id>
+			<!-- 这个名称自己定义 -->
+			<url>http://192.168.96.10:8081/repository/vrv-releases/</url>
+		</repository>
+		<snapshotRepository>
+			<id>nanjing-nexus</id>
+			<url>http://192.168.96.10:8081/repository/vrv-snapshots/</url>
+		</snapshotRepository>
+	</distributionManagement>
 
 </project>

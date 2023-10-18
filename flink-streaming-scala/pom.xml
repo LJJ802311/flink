@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-parent</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.15-VRV</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -166,7 +166,7 @@ under the License.
 							<goal>compile</goal>
 						</goals>
 					</execution>
- 
+
 					<!-- Run scala compiler in the process-test-resources phase, so that dependencies on
 						 scala classes can be resolved later in the (Java) test-compile phase -->
 					<execution>

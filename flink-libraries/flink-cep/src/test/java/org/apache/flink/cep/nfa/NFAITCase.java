@@ -476,8 +476,10 @@ public class NFAITCase extends TestLogger {
 
         for (StreamRecord<Event> event : events) {
 
-            Collection<Tuple2<Map<String, List<Event>>, Long>> timeoutPatterns =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, event.getTimestamp());
+            Tuple2<Collection<Map<String, List<Event>>>, Collection<Tuple2<Map<String, List<Event>>, Long>>> timeoutPatterns = nfa.advanceTime(
+                    sharedBufferAccessor,
+                    nfaState,
+                    event.getTimestamp());
             Collection<Map<String, List<Event>>> matchedPatterns =
                     nfa.process(
                             sharedBufferAccessor,
@@ -488,7 +490,7 @@ public class NFAITCase extends TestLogger {
                             new TestTimerService());
 
             resultingPatterns.addAll(matchedPatterns);
-            resultingTimeoutPatterns.addAll(timeoutPatterns);
+            resultingTimeoutPatterns.addAll(timeoutPatterns.f1);
         }
 
         assertEquals(1, resultingPatterns.size());

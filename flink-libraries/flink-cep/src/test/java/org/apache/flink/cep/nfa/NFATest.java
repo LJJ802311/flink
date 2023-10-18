@@ -98,7 +98,7 @@ public class NFATest extends TestLogger {
         expectedPatterns.add(firstPattern);
         expectedPatterns.add(secondPattern);
 
-        NFA<Event> nfa = new NFA<>(states, 0, false);
+        NFA<Event> nfa = new NFA<>(states, new HashMap<>(),0, false);
         NFATestHarness nfaTestHarness = NFATestHarness.forNFA(nfa).build();
 
         Collection<Map<String, List<Event>>> actualPatterns =
@@ -406,6 +406,6 @@ public class NFATest extends TestLogger {
         states.add(endState);
         states.add(endingState);
 
-        return new NFA<>(states, 2L, false);
+        return new NFA<>(states, new HashMap<>(),2L, false);
     }
 }

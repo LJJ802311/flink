@@ -26,8 +26,8 @@ import org.apache.flink.util.Preconditions;
 
 /**
  * Rich variant of the {@link IterativeCondition}. As a {@link RichFunction}, it gives access to the
- * {@link org.apache.flink.api.common.functions.RuntimeContext} and provides setup and teardown
- * methods: {@link RichFunction#open(org.apache.flink.configuration.Configuration)} and {@link
+ * {@link RuntimeContext} and provides setup and teardown
+ * methods: {@link RichFunction#open(Configuration)} and {@link
  * RichFunction#close()}.
  */
 public abstract class RichIterativeCondition<T> extends IterativeCondition<T>

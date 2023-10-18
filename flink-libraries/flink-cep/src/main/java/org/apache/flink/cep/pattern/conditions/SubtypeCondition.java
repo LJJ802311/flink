@@ -42,4 +42,8 @@ public class SubtypeCondition<T> extends SimpleCondition<T> {
     public boolean filter(T value) throws Exception {
         return subtype.isAssignableFrom(value.getClass());
     }
+
+    public Class<? extends T> getSubtype() {
+        return subtype;
+    }
 }

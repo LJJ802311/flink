@@ -43,30 +43,20 @@ import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferAccessor;
 import org.apache.flink.cep.time.TimerService;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.AbstractUdfStreamOperator;
-import org.apache.flink.streaming.api.operators.InternalTimer;
-import org.apache.flink.streaming.api.operators.InternalTimerService;
-import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.operators.Output;
-import org.apache.flink.streaming.api.operators.TimestampedCollector;
-import org.apache.flink.streaming.api.operators.Triggerable;
+import org.apache.flink.streaming.api.operators.*;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.StreamTask;
 import org.apache.flink.util.OutputTag;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
-
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.*;
 import java.util.stream.Stream;
 
 /**
@@ -83,9 +73,11 @@ public class CepOperator<IN, KEY, OUT>
         extends AbstractUdfStreamOperator<OUT, PatternProcessFunction<IN, OUT>>
         implements OneInputStreamOperator<IN, OUT>, Triggerable<KEY, VoidNamespace> {
 
-    private static final long serialVersionUID = -4166778210774160757L;
+    public static final String PATTERN_MATCHED_TIMES_METRIC_NAME = "patternMatchedTimes";
+    public static final String PATTERN_MATCHING_AVG_TIME_METRIC_NAME = "patternMatchingAvgTime";
+    public static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
 
-    private static final String LATE_ELEMENTS_DROPPED_METRIC_NAME = "numLateRecordsDropped";
+    private static final long serialVersionUID = -4166778210774160757L;
 
     private final boolean isProcessingTime;
 
@@ -134,7 +126,15 @@ public class CepOperator<IN, KEY, OUT>
     // Metrics
     // ------------------------------------------------------------------------
 
+    private transient Counter patternMatchedTimes;
+
     private transient Counter numLateRecordsDropped;
+
+    private transient SimpleGauge<Long> patternMatchingAvgTime;
+
+    private transient Long patternMatchingTimes;
+
+    private transient Long patternMatchingTotalTime;
 
     public CepOperator(
             final TypeSerializer<IN> inputSerializer,
@@ -215,7 +215,12 @@ public class CepOperator<IN, KEY, OUT>
         cepTimerService = new TimerServiceImpl();
 
         // metrics
+        this.patternMatchedTimes = metrics.counter(PATTERN_MATCHED_TIMES_METRIC_NAME);
+        this.patternMatchingAvgTime =
+                metrics.gauge(PATTERN_MATCHING_AVG_TIME_METRIC_NAME, new SimpleGauge<>(0L));
         this.numLateRecordsDropped = metrics.counter(LATE_ELEMENTS_DROPPED_METRIC_NAME);
+        this.patternMatchingTimes = 0L;
+        this.patternMatchingTotalTime = 0L;
     }
 
     @Override
@@ -242,9 +247,6 @@ public class CepOperator<IN, KEY, OUT>
             } else {
                 long currentTime = timerService.currentProcessingTime();
                 bufferEvent(element.getValue(), currentTime);
-
-                // register a timer for the next millisecond to sort and emit buffered data
-                timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, currentTime + 1);
             }
 
         } else {
@@ -262,8 +264,6 @@ public class CepOperator<IN, KEY, OUT>
                 // we have an event with a valid timestamp, so
                 // we buffer it until we receive the proper watermark.
 
-                saveRegisterWatermarkTimer();
-
                 bufferEvent(value, timestamp);
 
             } else if (lateDataOutputTag != null) {
@@ -274,16 +274,11 @@ public class CepOperator<IN, KEY, OUT>
         }
     }
 
-    /**
-     * Registers a timer for {@code current watermark + 1}, this means that we get triggered
-     * whenever the watermark advances, which is what we want for working off the queue of buffered
-     * elements.
-     */
-    private void saveRegisterWatermarkTimer() {
-        long currentWatermark = timerService.currentWatermark();
-        // protect against overflow
-        if (currentWatermark + 1 > currentWatermark) {
-            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, currentWatermark + 1);
+    private void registerTimer(long timestamp) {
+        if (isProcessingTime) {
+            timerService.registerProcessingTimeTimer(VoidNamespace.INSTANCE, timestamp + 1);
+        } else {
+            timerService.registerEventTimeTimer(VoidNamespace.INSTANCE, timestamp);
         }
     }
 
@@ -291,6 +286,7 @@ public class CepOperator<IN, KEY, OUT>
         List<IN> elementsForTimestamp = elementQueueState.get(currentTime);
         if (elementsForTimestamp == null) {
             elementsForTimestamp = new ArrayList<>();
+            registerTimer(currentTime);
         }
 
         elementsForTimestamp.add(event);
@@ -335,10 +331,6 @@ public class CepOperator<IN, KEY, OUT>
 
         // STEP 4
         updateNFA(nfaState);
-
-        if (!sortedTimestamps.isEmpty() || !partialMatches.isEmpty()) {
-            saveRegisterWatermarkTimer();
-        }
     }
 
     @Override
@@ -371,6 +363,9 @@ public class CepOperator<IN, KEY, OUT>
         }
 
         // STEP 3
+        advanceTime(nfa, timerService.currentProcessingTime());
+
+        // STEP 4
         updateNFA(nfa);
     }
 
@@ -387,6 +382,7 @@ public class CepOperator<IN, KEY, OUT>
     private void updateNFA(NFAState nfaState) throws IOException {
         if (nfaState.isStateChanged()) {
             nfaState.resetStateChanged();
+            nfaState.resetNewStartPartialMatch();
             computationStates.update(nfaState);
         }
     }
@@ -409,6 +405,7 @@ public class CepOperator<IN, KEY, OUT>
      */
     private void processEvent(NFAState nfaState, IN event, long timestamp) throws Exception {
         try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
+            long processStartTime = System.nanoTime();
             Collection<Map<String, List<IN>>> patterns =
                     nfa.process(
                             sharedBufferAccessor,
@@ -417,6 +414,13 @@ public class CepOperator<IN, KEY, OUT>
                             timestamp,
                             afterMatchSkipStrategy,
                             cepTimerService);
+            long processEndTime = System.nanoTime();
+            patternMatchingTimes++;
+            patternMatchingTotalTime = patternMatchingTotalTime + processEndTime - processStartTime;
+            patternMatchingAvgTime.update(patternMatchingTotalTime / patternMatchingTimes);
+            if (nfa.getWindowTime() > 0 && nfaState.isNewStartPartialMatch()) {
+                registerTimer(timestamp + nfa.getWindowTime());
+            }
             processMatchedSequences(patterns, timestamp);
         }
     }
@@ -428,8 +432,18 @@ public class CepOperator<IN, KEY, OUT>
      */
     private void advanceTime(NFAState nfaState, long timestamp) throws Exception {
         try (SharedBufferAccessor<IN> sharedBufferAccessor = partialMatches.getAccessor()) {
-            Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut =
-                    nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+            Tuple2<
+                            Collection<Map<String, List<IN>>>,
+                            Collection<Tuple2<Map<String, List<IN>>, Long>>>
+                    pendingMatchesAndTimeout =
+                            nfa.advanceTime(sharedBufferAccessor, nfaState, timestamp);
+
+            Collection<Map<String, List<IN>>> pendingMatches = pendingMatchesAndTimeout.f0;
+            Collection<Tuple2<Map<String, List<IN>>, Long>> timedOut = pendingMatchesAndTimeout.f1;
+
+            if (!pendingMatches.isEmpty()) {
+                processMatchedSequences(pendingMatches, timestamp);
+            }
             if (!timedOut.isEmpty()) {
                 processTimedOutSequences(timedOut);
             }
@@ -441,11 +455,12 @@ public class CepOperator<IN, KEY, OUT>
         PatternProcessFunction<IN, OUT> function = getUserFunction();
         setTimestamp(timestamp);
         for (Map<String, List<IN>> matchingSequence : matchingSequences) {
+            patternMatchedTimes.inc();
             function.processMatch(matchingSequence, context, collector);
         }
     }
 
-    private void processTimedOutSequences(
+    public void processTimedOutSequences(
             Collection<Tuple2<Map<String, List<IN>>, Long>> timedOutSequences) throws Exception {
         PatternProcessFunction<IN, OUT> function = getUserFunction();
         if (function instanceof TimedOutPartialMatchHandler) {
@@ -467,6 +482,10 @@ public class CepOperator<IN, KEY, OUT>
         }
 
         context.setTimestamp(timestamp);
+    }
+
+    public TimestampedCollector<OUT> getCollector() {
+        return collector;
     }
 
     /**
@@ -522,6 +541,24 @@ public class CepOperator<IN, KEY, OUT>
         }
     }
 
+    /** Gauge class for CEP metric. */
+    public static class SimpleGauge<T> implements Gauge<T> {
+        private T value;
+
+        public SimpleGauge(T initialValue) {
+            this.value = initialValue;
+        }
+
+        public void update(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
+        }
+    }
+
     //////////////////////			Testing Methods			//////////////////////
 
     @VisibleForTesting
@@ -547,7 +584,17 @@ public class CepOperator<IN, KEY, OUT>
     }
 
     @VisibleForTesting
+    long getPatternMatchedTimes() {
+        return patternMatchedTimes.getCount();
+    }
+
+    @VisibleForTesting
     long getLateRecordsNumber() {
         return numLateRecordsDropped.getCount();
+    }
+
+    @VisibleForTesting
+    long getPatternMatchingAvgTime() {
+        return patternMatchingAvgTime.getValue();
     }
 }

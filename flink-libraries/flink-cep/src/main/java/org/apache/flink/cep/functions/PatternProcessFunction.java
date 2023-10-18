@@ -48,7 +48,7 @@ public abstract class PatternProcessFunction<IN, OUT> extends AbstractRichFuncti
      * Generates resulting elements given a map of detected pattern events. The events are
      * identified by their specified names.
      *
-     * <p>{@link PatternProcessFunction.Context#timestamp()} in this case returns the time of the
+     * <p>{@link Context#timestamp()} in this case returns the time of the
      * last element that was assigned to the match, resulting in this partial match being finished.
      *
      * @param match map containing the found pattern. Events are identified by their names.

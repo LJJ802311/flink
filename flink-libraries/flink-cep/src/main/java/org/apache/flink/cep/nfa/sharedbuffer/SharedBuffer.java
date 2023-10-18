@@ -27,27 +27,22 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
+import org.apache.flink.cep.dynamic.processor.PatternProcessor;
 import org.apache.flink.cep.nfa.DeweyNumber;
 import org.apache.flink.cep.nfa.NFAState;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
-import org.apache.flink.util.WrappingRuntimeException;
-
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 import org.apache.flink.shaded.guava30.com.google.common.cache.CacheBuilder;
 import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalCause;
 import org.apache.flink.shaded.guava30.com.google.common.cache.RemovalListener;
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
-
+import org.apache.flink.util.WrappingRuntimeException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 /**
  * A shared buffer implementation which stores values under according state. Additionally, the
@@ -148,6 +143,107 @@ public class SharedBuffer<V> {
         this.entryCache =
                 CacheBuilder.newBuilder()
                         .maximumSize(cacheConfig.getEntryCacheSlots())
+                        .removalListener(
+                                (RemovalListener<NodeId, Lockable<SharedBufferNode>>)
+                                        removalNotification -> {
+                                            if (RemovalCause.SIZE
+                                                    == removalNotification.getCause()) {
+                                                try {
+                                                    entries.put(
+                                                            removalNotification.getKey(),
+                                                            removalNotification.getValue());
+                                                } catch (Exception e) {
+                                                    LOG.error(
+                                                            "Error in putting value into entries.",
+                                                            e);
+                                                }
+                                            }
+                                        })
+                        .build();
+        cacheStatisticsTimer = new Timer();
+        cacheStatisticsTimer.schedule(
+                new TimerTask() {
+                    @Override
+                    public void run() {
+                        LOG.info(
+                                "Statistics details of eventsBufferCache: {}, statistics details of entryCache: {}.",
+                                eventsBufferCache.stats(),
+                                entryCache.stats());
+                    }
+                },
+                cacheConfig.getCacheStatisticsInterval().toMillis(),
+                cacheConfig.getCacheStatisticsInterval().toMillis());
+    }
+
+    public SharedBuffer(
+            KeyedStateStore stateStore,
+            TypeSerializer<V> valueSerializer,
+            SharedBufferCacheConfig cacheConfig,
+            PatternProcessor<?> patternProcessor,
+            int numOfPatternProcessors) {
+        // When PatternProcessors are used for one stream of events to be matched to multiple
+        // patterns, we track the state of each PatternProcessor in shared buffer by introducing id
+        // and version of the PatternProcessor into the key of the MapState.
+        this.eventsBuffer =
+                stateStore.getMapState(
+                        new MapStateDescriptor<>(
+                                String.format(
+                                        "%s-%s-%s",
+                                        EVENTS_STATE_NAME,
+                                        patternProcessor.getId(),
+                                        patternProcessor.getVersion()),
+                                EventId.EventIdSerializer.INSTANCE,
+                                new Lockable.LockableTypeSerializer<>(valueSerializer)));
+
+        this.entries =
+                stateStore.getMapState(
+                        new MapStateDescriptor<>(
+                                String.format(
+                                        "%s-%s-%s",
+                                        ENTRIES_STATE_NAME,
+                                        patternProcessor.getId(),
+                                        patternProcessor.getVersion()),
+                                new NodeId.NodeIdSerializer(),
+                                new Lockable.LockableTypeSerializer<>(
+                                        new SharedBufferNodeSerializer())));
+
+        this.eventsCount =
+                stateStore.getMapState(
+                        new MapStateDescriptor<>(
+                                String.format(
+                                        "%s-%s-%s",
+                                        EVENTS_COUNT_STATE_NAME,
+                                        patternProcessor.getId(),
+                                        patternProcessor.getVersion()),
+                                LongSerializer.INSTANCE,
+                                IntSerializer.INSTANCE));
+        // set the events buffer cache and strategy of exchanging out
+        this.eventsBufferCache =
+                CacheBuilder.newBuilder()
+                        .maximumSize(
+                                cacheConfig.getEventsBufferCacheSlots() / numOfPatternProcessors)
+                        .removalListener(
+                                (RemovalListener<EventId, Lockable<V>>)
+                                        removalNotification -> {
+                                            if (RemovalCause.SIZE
+                                                    == removalNotification.getCause()) {
+                                                try {
+                                                    eventsBuffer.put(
+                                                            removalNotification.getKey(),
+                                                            removalNotification.getValue());
+                                                } catch (Exception e) {
+                                                    LOG.error(
+                                                            "Error in putting value into eventsBuffer.",
+                                                            e);
+                                                }
+                                            }
+                                        })
+                        .build();
+        // set the entry cache and strategy of exchanging out
+        this.entryCache =
+                CacheBuilder.newBuilder()
+                        .maximumSize(
+                                cacheConfig.getEventsBufferCacheSlots() / numOfPatternProcessors)
                         .removalListener(
                                 (RemovalListener<NodeId, Lockable<SharedBufferNode>>)
                                         removalNotification -> {
@@ -403,6 +499,12 @@ public class SharedBuffer<V> {
             eventsBuffer.putAll(eventsBufferCache.asMap());
             eventsBufferCache.invalidateAll();
         }
+    }
+
+    public void clear() {
+        entries.clear();
+        eventsBuffer.clear();
+        eventsCount.clear();
     }
 
     @VisibleForTesting

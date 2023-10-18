@@ -80,7 +80,7 @@ public class PatternTimeoutFlatSelectAdapter<IN, OUT, T> extends PatternFlatSele
 
     /**
      * Adapter that emitting timed out results from {@link PatternFlatTimeoutFunction}, which
-     * expects {@link Collector} through the {@link PatternProcessFunction.Context} of enclosing
+     * expects {@link Collector} through the {@link Context} of enclosing
      * {@link PatternProcessFunction}.
      */
     private static final class SideCollector<T> implements Collector<T> {

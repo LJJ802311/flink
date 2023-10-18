@@ -18,28 +18,15 @@
 
 package org.apache.flink.cep.nfa;
 
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerConfigSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerSnapshot;
-import org.apache.flink.api.common.typeutils.CompositeTypeSerializerUtil;
-import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
-import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
+import org.apache.flink.api.common.typeutils.*;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.compiler.NFAStateNameHandler;
-import org.apache.flink.cep.nfa.sharedbuffer.EventId;
-import org.apache.flink.cep.nfa.sharedbuffer.Lockable;
-import org.apache.flink.cep.nfa.sharedbuffer.NodeId;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferEdge;
-import org.apache.flink.cep.nfa.sharedbuffer.SharedBufferNode;
+import org.apache.flink.cep.nfa.sharedbuffer.*;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**

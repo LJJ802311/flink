@@ -19,7 +19,7 @@
 package org.apache.flink.cep.pattern;
 
 /**
- * An exception used to indicate that a {@link org.apache.flink.cep.pattern.Pattern} was not
+ * An exception used to indicate that a {@link Pattern} was not
  * specified correctly.
  */
 public class MalformedPatternException extends RuntimeException {

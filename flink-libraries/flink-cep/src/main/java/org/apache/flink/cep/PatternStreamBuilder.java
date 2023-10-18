@@ -36,7 +36,6 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 import javax.annotation.Nullable;
-
 import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -62,15 +61,6 @@ final class PatternStreamBuilder<IN> {
      * TimeBehaviour#EventTime}.
      */
     private final TimeBehaviour timeBehaviour;
-
-    /**
-     * The time behaviour enum defines how the system determines time for time-dependent order and
-     * operations that depend on time.
-     */
-    enum TimeBehaviour {
-        ProcessingTime,
-        EventTime
-    }
 
     private PatternStreamBuilder(
             final DataStream<IN> inputStream,

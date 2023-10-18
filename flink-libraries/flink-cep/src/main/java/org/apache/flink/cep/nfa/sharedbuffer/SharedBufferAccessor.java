@@ -18,20 +18,13 @@
 
 package org.apache.flink.cep.nfa.sharedbuffer;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.nfa.DeweyNumber;
 import org.apache.flink.util.WrappingRuntimeException;
 
-import org.apache.commons.lang3.StringUtils;
-
 import javax.annotation.Nullable;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 import static org.apache.flink.cep.nfa.compiler.NFAStateNameHandler.getOriginalNameFromInternal;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -122,7 +115,7 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
         List<Map<String, List<EventId>>> result = new ArrayList<>();
 
         // stack to remember the current extraction states
-        Stack<SharedBufferAccessor.ExtractionState> extractionStates = new Stack<>();
+        Stack<ExtractionState> extractionStates = new Stack<>();
 
         // get the starting shared buffer entry for the previous relation
         Lockable<SharedBufferNode> entryLock = sharedBuffer.getEntry(nodeId);
@@ -130,12 +123,12 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
         if (entryLock != null) {
             SharedBufferNode entry = entryLock.getElement();
             extractionStates.add(
-                    new SharedBufferAccessor.ExtractionState(
+                    new ExtractionState(
                             Tuple2.of(nodeId, entry), version, new Stack<>()));
 
             // use a depth first search to reconstruct the previous relations
             while (!extractionStates.isEmpty()) {
-                final SharedBufferAccessor.ExtractionState extractionState = extractionStates.pop();
+                final ExtractionState extractionState = extractionStates.pop();
                 // current path of the depth first search
                 final Stack<Tuple2<NodeId, SharedBufferNode>> currentPath =
                         extractionState.getPath();
@@ -179,7 +172,7 @@ public class SharedBufferAccessor<V> implements AutoCloseable {
                             }
 
                             extractionStates.push(
-                                    new SharedBufferAccessor.ExtractionState(
+                                    new ExtractionState(
                                             target != null
                                                     ? Tuple2.of(
                                                             target,
